@@ -22,11 +22,11 @@ public abstract class MixinLightingProvider implements InitialLightingAccess
     private ChunkLightProvider<?, ?> skyLightProvider;
 
     @Shadow
-    public void setSectionStatus(ChunkSectionPos pos, boolean notReady) {
+    public void updateSectionStatus(ChunkSectionPos pos, boolean notReady) {
     }
 
     @Shadow
-    public void setColumnEnabled(ChunkPos pos, boolean lightEnabled) {
+    public void setLightEnabled(ChunkPos pos, boolean lightEnabled) {
     }
 
     @Shadow
