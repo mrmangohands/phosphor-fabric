@@ -25,6 +25,7 @@
         "world.MixinChunkSerializer"
     ],
     "client": [
+	    "client.network.MixinClientPlayNetworkHandler",
 	    "client.world.MixinClientWorld"
     ],
     "injectors": {

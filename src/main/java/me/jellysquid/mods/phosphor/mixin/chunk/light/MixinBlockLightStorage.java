@@ -15,7 +15,7 @@ public abstract class MixinBlockLightStorage extends MixinLightStorage<BlockLigh
     private final LongSet lightEnabled = new LongOpenHashSet();
 
     @Override
-    protected void setColumnEnabled(final long chunkPos, final boolean enable) {
+    protected void setLightEnabled(final long chunkPos, final boolean enable) {
         if (enable) {
             this.lightEnabled.add(chunkPos);
         } else {
@@ -25,7 +25,7 @@ public abstract class MixinBlockLightStorage extends MixinLightStorage<BlockLigh
 
     @Override
     public boolean isLightEnabled(final long sectionPos) {
-        return this.lightEnabled.contains(ChunkSectionPos.withZeroY(sectionPos));
+        return this.lightEnabled.contains(ChunkSectionPos.withZeroZ(sectionPos));
     }
 
     @Override

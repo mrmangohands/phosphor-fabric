@@ -70,7 +70,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
             SkyLightStorage.Data data = ((SharedLightStorageAccess<SkyLightStorage.Data>) this).getStorage();
             SkyLightStorageDataAccess sdata = ((SkyLightStorageDataAccess) (Object) data);
 
-            int height = sdata.getHeight(ChunkSectionPos.withZeroY(chunk));
+            int height = sdata.getHeight(ChunkSectionPos.withZeroZ(chunk));
 
             if (height == sdata.getDefaultHeight() || chunkY >= height) {
                 if (lock.validate(stamp)) {
@@ -110,25 +110,25 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     }
 
     @Shadow
-    protected abstract boolean isAtOrAboveTopmostSection(long sectionPos);
+    protected abstract boolean isAboveTopmostLightArray(long sectionPos);
 
     @Shadow
-    protected abstract boolean isSectionEnabled(long sectionPos);
+    protected abstract boolean isLightEnabled(long sectionPos);
 
     @Override
     public int getLightWithoutLightmap(final long blockPos) {
-        final long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
+        final long sectionPos = ChunkSectionPos.fromGlobalPos(blockPos);
         final ChunkNibbleArray lightmap = this.getLightmapAbove(sectionPos);
 
         if (lightmap == null) {
-            return this.isSectionEnabled(sectionPos) ? 15 : 0;
+            return this.isLightEnabled(sectionPos) ? 15 : 0;
         }
 
         return lightmap.get(ChunkSectionPos.getLocalCoord(BlockPos.unpackLongX(blockPos)), 0, ChunkSectionPos.getLocalCoord(BlockPos.unpackLongZ(blockPos)));
     }
 
     @Redirect(
-        method = "createSection(J)Lnet/minecraft/world/chunk/ChunkNibbleArray;",
+        method = "createLightArray(J)Lnet/minecraft/world/chunk/ChunkNibbleArray;",
         at = @At(
             value = "NEW",
             target = "()Lnet/minecraft/world/chunk/ChunkNibbleArray;"
@@ -137,7 +137,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     private ChunkNibbleArray initializeLightmap(final long pos) {
         final ChunkNibbleArray ret = new ChunkNibbleArray();
 
-        if (this.isSectionEnabled(pos)) {
+        if (this.isLightEnabled(pos)) {
             Arrays.fill(ret.asByteArray(), (byte) -1);
         }
 
@@ -145,7 +145,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     }
 
     @Inject(
-        method = "enqueueRemoveSection(J)V",
+        method = "method_20809(J)V",
         at = @At("HEAD"),
         cancellable = true
     )
@@ -154,7 +154,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     }
 
     @Inject(
-        method = "enqueueAddSection(J)V",
+        method = "method_20810(J)V",
         at = @At("HEAD"),
         cancellable = true
     )
@@ -170,16 +170,16 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
     @Override
     public void beforeChunkEnabled(final long chunkPos) {
-        if (!this.isSectionEnabled(chunkPos)) {
+        if (!this.isLightEnabled(chunkPos)) {
             this.preInitSkylightChunks.add(chunkPos);
-            this.updateLevel(Long.MAX_VALUE, ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), 16, ChunkSectionPos.unpackZ(chunkPos)), 1, true);
+            this.updateLevel(Long.MAX_VALUE, ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), 16, ChunkSectionPos.getZ(chunkPos)), 1, true);
         }
     }
 
     @Override
     public void afterChunkDisabled(final long chunkPos) {
         if (this.preInitSkylightChunks.remove(chunkPos)) {
-            this.updateLevel(Long.MAX_VALUE, ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), 16, ChunkSectionPos.unpackZ(chunkPos)), 2, false);
+            this.updateLevel(Long.MAX_VALUE, ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), 16, ChunkSectionPos.getZ(chunkPos)), 2, false);
         }
     }
 
@@ -187,7 +187,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     protected int getInitialLevel(final long id) {
         final int ret = super.getInitialLevel(id);
 
-        if (ret >= 2 && ChunkSectionPos.unpackY(id) == 16 && this.preInitSkylightChunks.contains(ChunkSectionPos.withZeroY(id))) {
+        if (ret >= 2 && ChunkSectionPos.getY(id) == 16 && this.preInitSkylightChunks.contains(ChunkSectionPos.withZeroZ(id))) {
             return 1;
         }
 
@@ -199,7 +199,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
     @Shadow
     @Final
-    private LongSet enabledColumns;
+    private LongSet lightEnabled;
 
     /**
      * @author PhiPro
@@ -208,16 +208,16 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
      */
     @Override
     @Overwrite
-    public void setColumnEnabled(final long chunkPos, final boolean enabled) {
+    public void setLightEnabled(final long chunkPos, final boolean enabled) {
         if (enabled) {
             if (this.preInitSkylightChunks.contains(chunkPos)) {
                 this.initSkylightChunks.add(chunkPos);
                 this.checkForUpdates();
             } else {
-                this.enabledColumns.add(chunkPos);
+                this.lightEnabled.add(chunkPos);
             }
         } else {
-            this.enabledColumns.remove(chunkPos);
+            this.lightEnabled.remove(chunkPos);
             this.initSkylightChunks.remove(chunkPos);
             this.checkForUpdates();
         }
@@ -233,17 +233,17 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
      * @reason Re-implement completely
      */
     @Overwrite
-    public void updateLight(ChunkLightProvider<SkyLightStorage.Data, ?> lightProvider, boolean doSkylight, boolean skipEdgeLightPropagation) {
-        super.updateLight(lightProvider, doSkylight, skipEdgeLightPropagation);
+    public void updateLightArrays(ChunkLightProvider<SkyLightStorage.Data, ?> lightProvider, boolean doSkylight, boolean skipEdgeLightPropagation) {
+        super.updateLightArrays(lightProvider, doSkylight, skipEdgeLightPropagation);
 
-        if (!doSkylight || !this.hasUpdates) {
+        if (!doSkylight || !this.hasSkyLightUpdates) {
             return;
         }
 
         this.lightChunks(lightProvider);
         this.updateRemovedLightmaps();
 
-        this.hasUpdates = false;
+        this.hasSkyLightUpdates = false;
     }
 
     @Unique
@@ -259,12 +259,12 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
             final int minY = this.fillSkylightColumn(lightProvider, chunkPos);
 
-            this.enabledColumns.add(chunkPos);
+            this.lightEnabled.add(chunkPos);
             this.preInitSkylightChunks.remove(chunkPos);
-            this.updateLevel(Long.MAX_VALUE, ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), 16, ChunkSectionPos.unpackZ(chunkPos)), 2, false);
+            this.updateLevel(Long.MAX_VALUE, ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), 16, ChunkSectionPos.getZ(chunkPos)), 2, false);
 
-            if (this.hasSection(ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), minY, ChunkSectionPos.unpackZ(chunkPos)))) {
-                final long blockPos = BlockPos.asLong(ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackX(chunkPos)), ChunkSectionPos.getBlockCoord(minY), ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackZ(chunkPos)));
+            if (this.hasLight(ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), minY, ChunkSectionPos.getZ(chunkPos)))) {
+                final long blockPos = BlockPos.asLong(ChunkSectionPos.getWorldCoord(ChunkSectionPos.getX(chunkPos)), ChunkSectionPos.getWorldCoord(minY), ChunkSectionPos.getWorldCoord(ChunkSectionPos.getZ(chunkPos)));
 
                 for (int x = 0; x < 16; ++x) {
                     for (int z = 0; z < 16; ++z) {
@@ -278,22 +278,22 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
                 boolean spread = !this.initSkylightChunks.contains(ChunkSectionPos.offset(chunkPos, dir));
 
                 for (int y = 16; y > minY; --y) {
-                    final long sectionPos = ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), y, ChunkSectionPos.unpackZ(chunkPos));
+                    final long sectionPos = ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), y, ChunkSectionPos.getZ(chunkPos));
                     final long neighborSectionPos = ChunkSectionPos.offset(sectionPos, dir);
 
-                    if (!this.hasSection(neighborSectionPos)) {
+                    if (!this.hasLight(neighborSectionPos)) {
                         continue;
                     }
 
                     if (!spread) {
-                        if (this.readySections.contains(neighborSectionPos)) {
+                        if (this.nonEmptySections.contains(neighborSectionPos)) {
                             spread = true;
                         } else {
                             continue;
                         }
                     }
 
-                    final long blockPos = BlockPos.asLong(ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackX(sectionPos)), ChunkSectionPos.getBlockCoord(y), ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackZ(sectionPos)));
+                    final long blockPos = BlockPos.asLong(ChunkSectionPos.getWorldCoord(ChunkSectionPos.getX(sectionPos)), ChunkSectionPos.getWorldCoord(y), ChunkSectionPos.getWorldCoord(ChunkSectionPos.getZ(sectionPos)));
 
                     final int ox = 15 * Math.max(dir.getOffsetX(), 0);
                     final int oz = 15 * Math.max(dir.getOffsetZ(), 0);
@@ -325,7 +325,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
         for (final LongIterator it = removedLightmaps.iterator(); it.hasNext(); ) {
             final long sectionPos = it.nextLong();
 
-            if (!this.enabledChunks.contains(ChunkSectionPos.withZeroY(sectionPos))) {
+            if (!this.enabledChunks.contains(ChunkSectionPos.withZeroZ(sectionPos))) {
                 continue;
             }
 
@@ -336,7 +336,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
             final long sectionPosAbove = this.getSectionAbove(sectionPos);
 
             if (sectionPosAbove == Long.MAX_VALUE) {
-                this.updateVanillaLightmapsBelow(sectionPos, this.isSectionEnabled(sectionPos) ? DIRECT_SKYLIGHT_MAP : null, true);
+                this.updateVanillaLightmapsBelow(sectionPos, this.isLightEnabled(sectionPos) ? DIRECT_SKYLIGHT_MAP : null, true);
             } else {
                 long removedLightmapPosAbove = sectionPos;
 
@@ -346,7 +346,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
                     }
                 }
 
-                this.updateVanillaLightmapsBelow(removedLightmapPosAbove, this.vanillaLightmapComplexities.get(sectionPosAbove) == 0 ? null : this.getLightSection(sectionPosAbove, true), false);
+                this.updateVanillaLightmapsBelow(removedLightmapPosAbove, this.vanillaLightmapComplexities.get(sectionPosAbove) == 0 ? null : this.getLightArray(sectionPosAbove, true), false);
             }
         }
 
@@ -355,7 +355,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
     /**
      * Fill all sections above the topmost block with source skylight.
-     * @return The section containing the topmost block or the section corresponding to {@link SkyLightStorage.Data#minSectionY} if none exists.
+     * @return The section containing the topmost block or the section corresponding to {@link SkyLightStorage.Data#defaultTopArraySectionY} if none exists.
      */
     private int fillSkylightColumn(final ChunkLightProvider<SkyLightStorage.Data, ?> lightProvider, final long chunkPos) {
         int minY = 16;
@@ -364,14 +364,14 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
         // First need to remove all pending light updates before changing any light value
 
         for (; this.isAboveMinHeight(minY); --minY) {
-            final long sectionPos = ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), minY, ChunkSectionPos.unpackZ(chunkPos));
+            final long sectionPos = ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), minY, ChunkSectionPos.getZ(chunkPos));
 
-            if (this.readySections.contains(sectionPos)) {
+            if (this.nonEmptySections.contains(sectionPos)) {
                 break;
             }
 
-            if (this.hasSection(sectionPos)) {
-                this.removeSection(lightProvider, sectionPos);
+            if (this.hasLight(sectionPos)) {
+                this.removeChunkData(lightProvider, sectionPos);
             }
 
             final ChunkNibbleArray lightmap = this.getLightmap(sectionPos);
@@ -383,9 +383,9 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
         // Set up a lightmap and adjust the complexity for the section below
 
-        final long sectionPosBelow = ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), minY, ChunkSectionPos.unpackZ(chunkPos));
+        final long sectionPosBelow = ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), minY, ChunkSectionPos.getZ(chunkPos));
 
-        if (this.hasSection(sectionPosBelow)) {
+        if (this.hasLight(sectionPosBelow)) {
             final ChunkNibbleArray lightmapBelow = this.getLightmap(sectionPosBelow);
 
             if (lightmapBelow == null) {
@@ -420,7 +420,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
         int sections = 0;
 
         for (int y = 16; y > minY; --y) {
-            final long sectionPos = ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), y, ChunkSectionPos.unpackZ(chunkPos));
+            final long sectionPos = ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), y, ChunkSectionPos.getZ(chunkPos));
 
             if (this.removeLightmap(sectionPos)) {
                 sections |= 1 << (y + 1);
@@ -429,32 +429,32 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
         // Calling onUnloadSection() after removing all the lightmaps is slightly more efficient
 
-        this.storage.clearCache();
+        this.lightArrays.clearCache();
 
         for (int y = 16; y > minY; --y) {
             if ((sections & (1 << (y + 1))) != 0) {
-                this.onUnloadSection(ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), y, ChunkSectionPos.unpackZ(chunkPos)));
+                this.onChunkRemoved(ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), y, ChunkSectionPos.getZ(chunkPos)));
             }
         }
 
         // Add trivial lightmaps for vanilla compatibility
 
         for (int y = 16; y > minY; --y) {
-            final long sectionPos = ChunkSectionPos.asLong(ChunkSectionPos.unpackX(chunkPos), y, ChunkSectionPos.unpackZ(chunkPos));
+            final long sectionPos = ChunkSectionPos.asLong(ChunkSectionPos.getX(chunkPos), y, ChunkSectionPos.getZ(chunkPos));
 
             if (this.nonOptimizableSections.contains(sectionPos)) {
-                this.storage.put(sectionPos, this.createTrivialVanillaLightmap(DIRECT_SKYLIGHT_MAP));
-                this.dirtySections.add(sectionPos);
+                this.lightArrays.put(sectionPos, this.createTrivialVanillaLightmap(DIRECT_SKYLIGHT_MAP));
+                this.field_15802.add(sectionPos);
             }
         }
 
-        this.storage.clearCache();
+        this.lightArrays.clearCache();
 
         return minY;
     }
 
     @Shadow
-    private volatile boolean hasUpdates;
+    private volatile boolean hasSkyLightUpdates;
 
     /**
      * @author PhiPro
@@ -462,7 +462,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
      */
     @Overwrite
     private void checkForUpdates() {
-        this.hasUpdates = !this.initSkylightChunks.isEmpty();
+        this.hasSkyLightUpdates = !this.initSkylightChunks.isEmpty();
     }
 
     @Unique
@@ -482,17 +482,17 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     }
 
     @Override
-    public boolean hasSection(final long sectionPos) {
-        return super.hasSection(sectionPos) && this.getLightSection(sectionPos, true) != null;
+    public boolean hasLight(final long sectionPos) {
+        return super.hasLight(sectionPos) && this.getLightArray(sectionPos, true) != null;
     }
 
     // Queued lightmaps are only added to the world via updateLightmaps()
     @Redirect(
-        method = "createSection(J)Lnet/minecraft/world/chunk/ChunkNibbleArray;",
+        method = "createLightArray(J)Lnet/minecraft/world/chunk/ChunkNibbleArray;",
         slice = @Slice(
             from = @At(
                 value = "FIELD",
-                target = "Lnet/minecraft/world/chunk/light/SkyLightStorage;queuedSections:Lit/unimi/dsi/fastutil/longs/Long2ObjectMap;",
+                target = "Lnet/minecraft/world/chunk/light/SkyLightStorage;lightArraysToAdd:Lit/unimi/dsi/fastutil/longs/Long2ObjectMap;",
                 opcode = Opcodes.GETFIELD
             )
         ),
@@ -514,7 +514,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
     @Override
     protected void beforeLightChange(final long blockPos, final int oldVal, final int newVal, final ChunkNibbleArray lightmap) {
-        final long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
+        final long sectionPos = ChunkSectionPos.fromGlobalPos(blockPos);
 
         if (ChunkSectionPos.getLocalCoord(BlockPos.unpackLongY(blockPos)) == 0) {
             this.vanillaLightmapComplexities.put(sectionPos, this.vanillaLightmapComplexities.get(sectionPos) + newVal - oldVal);
@@ -533,22 +533,22 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
         // Vanilla lightmaps need to be re-parented as they otherwise leak a reference to the old lightmap
 
-        if (this.dirtySections.add(sectionPos)) {
-            this.storage.replaceWithCopy(sectionPos);
-            this.updateVanillaLightmapsBelow(sectionPos, this.getLightSection(sectionPos, true), false);
+        if (this.field_15802.add(sectionPos)) {
+            this.lightArrays.replaceWithCopy(sectionPos);
+            this.updateVanillaLightmapsBelow(sectionPos, this.getLightArray(sectionPos, true), false);
         }
     }
 
     @Shadow
-    protected abstract boolean isAboveMinHeight(final int sectionY);
+    public abstract boolean isAboveMinHeight(final int sectionY);
 
     /**
-     * Returns the first section below the provided <code>sectionPos</code> that {@link #hasSection(long) supports light propagations} or {@link Long#MAX_VALUE} if no such section exists.
+     * Returns the first section below the provided <code>sectionPos</code> that {@link #hasLight(long) supports light propagations} or {@link Long#MAX_VALUE} if no such section exists.
      */
     @Unique
     private long getSectionBelow(long sectionPos) {
-        for (int y = ChunkSectionPos.unpackY(sectionPos); this.isAboveMinHeight(y); --y) {
-            if (this.hasSection(sectionPos = ChunkSectionPos.offset(sectionPos, Direction.DOWN))) {
+        for (int y = ChunkSectionPos.getY(sectionPos); this.isAboveMinHeight(y); --y) {
+            if (this.hasLight(sectionPos = ChunkSectionPos.offset(sectionPos, Direction.DOWN))) {
                 return sectionPos;
             }
         }
@@ -558,7 +558,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
     @Override
     protected int getLightmapComplexityChange(final long blockPos, final int oldVal, final int newVal, final ChunkNibbleArray lightmap) {
-        final long sectionPos = ChunkSectionPos.fromBlockPos(blockPos);
+        final long sectionPos = ChunkSectionPos.fromGlobalPos(blockPos);
         final int x = ChunkSectionPos.getLocalCoord(BlockPos.unpackLongX(blockPos));
         final int y = ChunkSectionPos.getLocalCoord(BlockPos.unpackLongY(blockPos));
         final int z = ChunkSectionPos.getLocalCoord(BlockPos.unpackLongZ(blockPos));
@@ -588,7 +588,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     private ChunkNibbleArray getLightmapAbove(long sectionPos) {
         final long sectionPosAbove = this.getSectionAbove(sectionPos);
 
-        return sectionPosAbove == Long.MAX_VALUE ? null : this.getLightSection(sectionPosAbove, true);
+        return sectionPosAbove == Long.MAX_VALUE ? null : this.getLightArray(sectionPosAbove, true);
     }
 
     /**
@@ -598,7 +598,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     private long getSectionAbove(long sectionPos) {
         sectionPos = ChunkSectionPos.offset(sectionPos, Direction.UP);
 
-        if (this.isAtOrAboveTopmostSection(sectionPos)) {
+        if (this.isAboveTopmostLightArray(sectionPos)) {
             return Long.MAX_VALUE;
         }
 
@@ -611,7 +611,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
     @Unique
     private int getDirectSkylight(final long sectionPos) {
-        return this.isSectionEnabled(sectionPos) ? 15 : 0;
+        return this.isLightEnabled(sectionPos) ? 15 : 0;
     }
 
     @Override
@@ -680,10 +680,10 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     }
 
     @Redirect(
-        method = "onUnloadSection(J)V",
+        method = "onChunkRemoved(J)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/world/chunk/light/SkyLightStorage;hasSection(J)Z"
+            target = "Lnet/minecraft/world/chunk/light/SkyLightStorage;hasLight(J)Z"
         )
     )
     private boolean hasActualLightmap(final SkyLightStorage lightStorage, long sectionPos) {
@@ -695,7 +695,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
         final int oldLevel = this.getLevel(id);
 
         if (oldLevel >= 2 && level < 2) {
-            ((SkyLightStorageDataAccess) (Object) this.storage).updateMinHeight(ChunkSectionPos.unpackY(id));
+            ((SkyLightStorageDataAccess) (Object) this.lightArrays).updateMinHeight(ChunkSectionPos.getY(id));
         }
 
         super.setLevel(id, level);
@@ -705,7 +705,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     protected ChunkNibbleArray createInitialVanillaLightmap(final long sectionPos) {
         // Attempt to restore data stripped from vanilla saves. See MC-198987
 
-        if (!this.readySections.contains(sectionPos) && !this.readySections.contains(ChunkSectionPos.offset(sectionPos, Direction.UP))) {
+        if (!this.nonEmptySections.contains(sectionPos) && !this.nonEmptySections.contains(ChunkSectionPos.offset(sectionPos, Direction.UP))) {
             return this.createTrivialVanillaLightmap(sectionPos);
         }
 
@@ -716,7 +716,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
         final int complexity;
 
         if (sectionPosAbove == Long.MAX_VALUE) {
-            complexity = this.isSectionEnabled(sectionPos) ? 15 * 16 * 16 : 0;
+            complexity = this.isLightEnabled(sectionPos) ? 15 * 16 * 16 : 0;
         } else {
             complexity = this.vanillaLightmapComplexities.get(sectionPosAbove);
         }
@@ -728,10 +728,10 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
         // Need to create an actual lightmap in this case as it is non-trivial
 
         final ChunkNibbleArray lightmap = new ChunkNibbleArray(new byte[2048]);
-        this.storage.put(sectionPos, lightmap);
-        this.storage.clearCache();
+        this.lightArrays.put(sectionPos, lightmap);
+        this.lightArrays.clearCache();
 
-        this.onLoadSection(sectionPos);
+        this.onLightArrayCreated(sectionPos);
         this.setLightmapComplexity(sectionPos, complexity);
 
         return lightmap;
@@ -742,10 +742,10 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
         final long sectionPosAbove = this.getSectionAbove(sectionPos);
 
         if (sectionPosAbove == Long.MAX_VALUE) {
-            return this.createTrivialVanillaLightmap(this.isSectionEnabled(sectionPos) ? DIRECT_SKYLIGHT_MAP : null);
+            return this.createTrivialVanillaLightmap(this.isLightEnabled(sectionPos) ? DIRECT_SKYLIGHT_MAP : null);
         }
 
-        return this.createTrivialVanillaLightmap(this.vanillaLightmapComplexities.get(sectionPosAbove) == 0 ? null : this.getLightSection(sectionPosAbove, true));
+        return this.createTrivialVanillaLightmap(this.vanillaLightmapComplexities.get(sectionPosAbove) == 0 ? null : this.getLightArray(sectionPosAbove, true));
     }
 
     @Unique
@@ -754,11 +754,11 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     }
 
     @Inject(
-        method = "onLoadSection(J)V",
+        method = "onLightArrayCreated(J)V",
         at = @At("HEAD")
     )
     private void updateVanillaLightmapsOnLightmapCreation(final long sectionPos, final CallbackInfo ci) {
-        this.updateVanillaLightmapsOnLightmapCreation(sectionPos, this.getLightSection(sectionPos, true));
+        this.updateVanillaLightmapsOnLightmapCreation(sectionPos, this.getLightArray(sectionPos, true));
     }
 
     @Unique
@@ -776,7 +776,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
         // Enabling the chunk already creates all relevant vanilla lightmaps
 
-        if (!this.enabledChunks.contains(ChunkSectionPos.withZeroY(sectionPos))) {
+        if (!this.enabledChunks.contains(ChunkSectionPos.withZeroZ(sectionPos))) {
             return;
         }
 
@@ -786,13 +786,13 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
     }
 
     @Inject(
-        method = "onUnloadSection(J)V",
+        method = "onChunkRemoved(J)V",
         at = @At("HEAD")
     )
     private void updateVanillaLightmapsOnLightmapRemoval(final long sectionPos, final CallbackInfo ci) {
         this.vanillaLightmapComplexities.remove(sectionPos);
 
-        if (!this.enabledChunks.contains(ChunkSectionPos.withZeroY(sectionPos))) {
+        if (!this.enabledChunks.contains(ChunkSectionPos.withZeroZ(sectionPos))) {
             return;
         }
 
@@ -803,8 +803,8 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
 
     @Unique
     private void updateVanillaLightmapsBelow(final long sectionPos, final ChunkNibbleArray lightmapAbove, final boolean stopOnRemovedLightmap) {
-        for (int y = ChunkSectionPos.unpackY(sectionPos) - 1; this.isAboveMinHeight(y); --y) {
-            final long sectionPosBelow = ChunkSectionPos.asLong(ChunkSectionPos.unpackX(sectionPos), y, ChunkSectionPos.unpackZ(sectionPos));
+        for (int y = ChunkSectionPos.getY(sectionPos) - 1; this.isAboveMinHeight(y); --y) {
+            final long sectionPosBelow = ChunkSectionPos.asLong(ChunkSectionPos.getX(sectionPos), y, ChunkSectionPos.getZ(sectionPos));
 
             if (stopOnRemovedLightmap) {
                 if (this.removedLightmaps.contains(sectionPosBelow)) {
@@ -814,7 +814,7 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
                 this.removedLightmaps.remove(sectionPosBelow);
             }
 
-            final ChunkNibbleArray lightmapBelow = this.getLightSection(sectionPosBelow, true);
+            final ChunkNibbleArray lightmapBelow = this.getLightArray(sectionPosBelow, true);
 
             if (lightmapBelow == null) {
                 continue;
@@ -824,10 +824,10 @@ public abstract class MixinSkyLightStorage extends MixinLightStorage<SkyLightSto
                 break;
             }
 
-            this.storage.put(sectionPosBelow, this.createTrivialVanillaLightmap(lightmapAbove));
-            this.dirtySections.add(sectionPosBelow);
+            this.lightArrays.put(sectionPosBelow, this.createTrivialVanillaLightmap(lightmapAbove));
+            this.field_15802.add(sectionPosBelow);
         }
 
-        this.storage.clearCache();
+        this.lightArrays.clearCache();
     }
 }

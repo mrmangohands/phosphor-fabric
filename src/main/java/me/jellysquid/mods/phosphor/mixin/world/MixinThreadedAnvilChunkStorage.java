@@ -25,7 +25,7 @@ import net.minecraft.world.chunk.ChunkStatus;
 @Mixin(ThreadedAnvilChunkStorage.class)
 public abstract class MixinThreadedAnvilChunkStorage implements ThreadedAnvilChunkStorageAccess {
     @Shadow
-    protected abstract CompletableFuture<Either<List<Chunk>, Unloaded>> getRegion(final ChunkPos centerChunk, final int margin, final IntFunction<ChunkStatus> distanceToStatus);
+    protected abstract CompletableFuture<Either<List<Chunk>, Unloaded>> createChunkRegionFuture(final ChunkPos centerChunk, final int margin, final IntFunction<ChunkStatus> distanceToStatus);
 
     @Override
     @Invoker("releaseLightTicket")
@@ -36,16 +36,16 @@ public abstract class MixinThreadedAnvilChunkStorage implements ThreadedAnvilChu
     private ThreadExecutor<Runnable> mainThreadExecutor;
 
     @Redirect(
-        method = "makeChunkAccessible(Lnet/minecraft/server/world/ChunkHolder;)Ljava/util/concurrent/CompletableFuture;",
+        method = "createBorderFuture(Lnet/minecraft/server/world/ChunkHolder;)Ljava/util/concurrent/CompletableFuture;",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/server/world/ChunkHolder;getChunkAt(Lnet/minecraft/world/chunk/ChunkStatus;Lnet/minecraft/server/world/ThreadedAnvilChunkStorage;)Ljava/util/concurrent/CompletableFuture;"
+            target = "Lnet/minecraft/server/world/ChunkHolder;createFuture(Lnet/minecraft/world/chunk/ChunkStatus;Lnet/minecraft/server/world/ThreadedAnvilChunkStorage;)Ljava/util/concurrent/CompletableFuture;"
         )
     )
     private CompletableFuture<Either<Chunk, Unloaded>> enforceNeighborsLoaded(final ChunkHolder holder, final ChunkStatus targetStatus, final ThreadedAnvilChunkStorage chunkStorage) {
-        return holder.getChunkAt(ChunkStatus.FULL, (ThreadedAnvilChunkStorage) (Object) this).thenComposeAsync(
+        return holder.createFuture(ChunkStatus.FULL, (ThreadedAnvilChunkStorage) (Object) this).thenComposeAsync(
             either -> either.map(
-                chunk -> this.getRegion(holder.getPos(), 1, ChunkStatus::byDistanceFromFull).thenApply(
+                chunk -> this.createChunkRegionFuture(holder.getPos(), 1, ChunkStatus::getTargetGenerationStatus).thenApply(
                     either_ -> either_.mapLeft(list -> list.get(list.size() / 2))
                 ),
                 unloaded -> CompletableFuture.completedFuture(Either.right(unloaded))

@@ -182,9 +182,9 @@ public abstract class MixinChunkLightProvider<M extends ChunkToNibbleArrayMap<M>
         BitSet bits = this.removeChunkBucket(key);
 
         if (bits != null && !bits.isEmpty()) {
-            int startX = ChunkSectionPos.unpackX(sectionPos) << 4;
-            int startY = ChunkSectionPos.unpackY(sectionPos) << 4;
-            int startZ = ChunkSectionPos.unpackZ(sectionPos) << 4;
+            int startX = ChunkSectionPos.getX(sectionPos) << 4;
+            int startY = ChunkSectionPos.getY(sectionPos) << 4;
+            int startZ = ChunkSectionPos.getZ(sectionPos) << 4;
 
             for (int i = bits.nextSetBit(0); i != -1; i = bits.nextSetBit(i + 1)) {
                 int x = (i >> 8) & 15;
@@ -249,7 +249,7 @@ public abstract class MixinChunkLightProvider<M extends ChunkToNibbleArrayMap<M>
     }
 
     private long getBucketKeyForSection(long sectionPos) {
-        return BlockPos.asLong(ChunkSectionPos.unpackX(sectionPos) << 4, ChunkSectionPos.unpackY(sectionPos) << 4, ChunkSectionPos.unpackZ(sectionPos) << 4);
+        return BlockPos.asLong(ChunkSectionPos.getX(sectionPos) << 4, ChunkSectionPos.getY(sectionPos) << 4, ChunkSectionPos.getZ(sectionPos) << 4);
     }
 
     private BitSet removeChunkBucket(long key) {
@@ -282,8 +282,8 @@ public abstract class MixinChunkLightProvider<M extends ChunkToNibbleArrayMap<M>
      * Now controls both source light and light updates. Disabling now additionally removes all data associated to the chunk.
      */
     @Overwrite
-    public void setColumnEnabled(final ChunkPos pos, final boolean enabled) {
-        final long chunkPos = ChunkSectionPos.withZeroY(ChunkSectionPos.asLong(pos.x, 0, pos.z));
+    public void setLightEnabled(final ChunkPos pos, final boolean enabled) {
+        final long chunkPos = ChunkSectionPos.withZeroZ(ChunkSectionPos.asLong(pos.x, 0, pos.z));
         final LightStorageAccess lightStorage = (LightStorageAccess) this.lightStorage;
 
         if (enabled) {

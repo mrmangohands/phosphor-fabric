@@ -35,15 +35,15 @@ public abstract class MixinServerLightingProvider extends MixinLightingProvider 
 
             for (int i = 0; i < chunkSections.length; ++i) {
                 if (!ChunkSection.isEmpty(chunkSections[i])) {
-                    super.setSectionStatus(ChunkSectionPos.from(chunkPos, i), false);
+                    super.updateSectionStatus(ChunkSectionPos.from(chunkPos, i), false);
                 }
             }
 
             if (chunk.isLightOn()) {
-                super.enableSourceLight(ChunkSectionPos.withZeroY(ChunkSectionPos.asLong(chunkPos.x, 0, chunkPos.z)));
+                super.enableSourceLight(ChunkSectionPos.withZeroZ(ChunkSectionPos.asLong(chunkPos.x, 0, chunkPos.z)));
             }
 
-            super.enableLightUpdates(ChunkSectionPos.withZeroY(ChunkSectionPos.asLong(chunkPos.x, 0, chunkPos.z)));
+            super.enableLightUpdates(ChunkSectionPos.withZeroZ(ChunkSectionPos.asLong(chunkPos.x, 0, chunkPos.z)));
         },
             () -> "setupLightmaps " + chunkPos
         ));
@@ -70,7 +70,7 @@ public abstract class MixinServerLightingProvider extends MixinLightingProvider 
 
         this.enqueue(chunkPos.x, chunkPos.z, ServerLightingProvider.Stage.PRE_UPDATE, Util.debugRunnable(() -> {
             if (!chunk.isLightOn()) {
-                super.enableSourceLight(ChunkSectionPos.withZeroY(ChunkSectionPos.asLong(chunkPos.x, 0, chunkPos.z)));
+                super.enableSourceLight(ChunkSectionPos.withZeroZ(ChunkSectionPos.asLong(chunkPos.x, 0, chunkPos.z)));
             }
 
             if (!excludeBlocks) {
