@@ -2,16 +2,15 @@
   "schemaVersion": 1,
   "id": "phosphor",
   "version": "${version}",
-  "name": "Phosphor",
-  "description": "Phosphor is a free and open-source optimization mod for Minecraft which improves the performance of the lighting engine, resulting in significantly reduced world generation times and improved server tick rates. You can help feed me and support development on Patreon, gaining some special perks in the process! Any amount of support helps a ton. https://www.patreon.com/jellysquid",
+  "name": "Phosphor 1.16.1 Backport",
+  "description": "Phosphor is a free and open-source optimization mod for Minecraft which improves the performance of the lighting engine, resulting in significantly reduced world generation times and improved server tick rates. This is an unofficial backport of JellySquid and PhiPro's original mod. You can help support JellySquid on Patreon: https://www.patreon.com/jellysquid",
   "authors": [
-    "JellySquid",
-    "PhiPro"
+    "MrMangoHands"
   ],
   "contact": {
-    "homepage": "https://caffeinemc.net",
-    "sources": "https://github.com/CaffeineMC/phosphor-fabric",
-    "issues": "https://github.com/CaffeineMC/phosphor-fabric/issues"
+    "homepage": "https://github.com/mrmangohands/phosphor-fabric",
+    "sources": "https://github.com/mrmangohands/phosphor-fabric",
+    "issues": "https://github.com/mrmangohands/phosphor-fabric/issues"
   },
   "license": "LGPL-3.0-only",
   "icon": "assets/phosphor/icon.png",
