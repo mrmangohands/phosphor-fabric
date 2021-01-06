@@ -1,16 +1,17 @@
 <img src="src/main/resources/assets/phosphor/icon.png" width="128">
 
-# Phosphor (for Fabric)
-![GitHub license](https://img.shields.io/github/license/CaffeineMC/phosphor-fabric.svg)
-![GitHub issues](https://img.shields.io/github/issues/CaffeineMC/phosphor-fabric.svg)
-![GitHub tag](https://img.shields.io/github/v/tag/CaffeineMC/phosphor-fabric.svg)
+# Phosphor Ports (for Fabric)
+![GitHub license](https://img.shields.io/github/license/mrmangohands/phosphor-fabric.svg)
+![GitHub issues](https://img.shields.io/github/issues/mrmangohands/phosphor-fabric.svg)
+![GitHub tag](https://img.shields.io/github/v/tag/mrmangohands/phosphor-fabric.svg)
 
 Phosphor is a free and open-source Minecraft mod (under GNU GPLv3) aiming to save your CPU cycles and improve performance by optimizing one of Minecraft's most inefficient areas-- the lighting engine.
 It works on **both the client and server**, and can be installed on servers **without requiring clients to also have the mod**.
 
+These are unofficial ports of [JellySquid and PhiPro's original mod](https://github.com/jellysquid3/phosphor-fabric) to versions that aren't maintained or present upstream. 1.16.1 is the current priority.
+
 The mod is designed to be as minimal as possible in the changes it makes, and as such, does not modify the light model or interfaces of vanilla Minecraft. Because of this, Phosphor should be compatible
 with many Minecraft mods (so long as they do not make drastic changes to how the lighting engine works.) If you've ran into a compatibility problem, please open an issue!
-
 
 ---
 
@@ -23,20 +24,17 @@ Fabric mods before, you can find a variety of community guides for doing so [her
 
 #### Stable releases
 
-![GitHub release](https://img.shields.io/github/release/CaffeineMC/phosphor-fabric.svg)
+![GitHub release](https://img.shields.io/github/release/mrmangohands/phosphor-fabric.svg)
 
-The latest releases of Phosphor are published to our [Modrinth](https://modrinth.com/mod/phosphor) and
-[GitHub release](https://github.com/CaffeineMC/phosphor-fabric/releases) pages. Releases are considered by our team to be
-**suitable for general use**, but they are not guaranteed to be free of bugs and other issues.
-
-Usually, releases will be made available on GitHub slightly sooner than other locations.
+The latest releases of Phosphor are published to our [GitHub release](https://github.com/CaffeineMC/phosphor-fabric/releases) page.
+Releases are considered by our team to be **suitable for general use**, but they are not guaranteed to be free of bugs and other issues.
 
 #### Bleeding-edge builds (unstable)
 
-[![GitHub build status](https://img.shields.io/github/workflow/status/CaffeineMC/phosphor-fabric/gradle-ci/1.16.x/dev)](https://github.com/CaffeineMC/phosphor-fabric/actions/workflows/gradle.yml)
+[![GitHub build status](https://img.shields.io/github/workflow/status/mrmangohands/phosphor-fabric/gradle-ci/1.16.1/dev)](https://github.com/mrmangohands/phosphor-fabric/actions/workflows/gradle.yml)
 
 If you are a player who is looking to get your hands on the latest **bleeding-edge changes for testing**, consider
-taking a look at the automated builds produced through our [GitHub Actions workflow](https://github.com/CaffeineMC/phosphor-fabric/actions/workflows/gradle.yml?query=event%3Apush).
+taking a look at the automated builds produced through our [GitHub Actions workflow](https://github.com/mrmangohands/phosphor-fabric/actions/workflows/gradle.yml?query=event%3Apush).
 This workflow automatically runs every time a change is pushed to the repository, and as such, the builds it produces
 will generally reflect the latest snapshot of development.
 
@@ -45,24 +43,11 @@ incomplete features, bugs, crashes, and all other kinds of weird issues. You **s
 unless you know what you are doing and are comfortable with software debugging. If you report issues using these builds,
 we will expect that this is the case. Caveat emptor.
 
-### CurseForge
-
-[![CurseForge downloads](http://cf.way2muchnoise.eu/full_372124_downloads.svg)](https://www.curseforge.com/minecraft/mc-mods/phosphor)
-
-If you are using the CurseForge client, you can continue to find downloads through our
-[CurseForge page](https://www.curseforge.com/minecraft/mc-mods/phosphor). Unless you are using the CurseForge
-client, you should prefer the downloads linked on our Modrinth or GitHub release pages above.
-
-The CurseForge client does not natively support Fabric modding, so you will need to install
-[Jumploader](https://www.curseforge.com/minecraft/mc-mods/jumploader) in order to set up your Fabric environment. Due to
-the extra complexity and startup overhead this workaround adds, we generally do not recommend using this method unless
-you have an existing setup with it.
-
 ---
 
 ### Reporting Issues
 
-You can report bugs and crashes by opening an issue on our [issue tracker](https://github.com/CaffeineMC/phosphor-fabric/issues).
+You can report bugs and crashes by opening an issue on our [issue tracker](https://github.com/mrmangohands/phosphor-fabric/issues).
 Before opening a new issue, use the search tool to make sure that your issue has not already been reported and ensure
 that you have completely filled out the issue template. Issues which are duplicates or do not contain the necessary
 information to triage and debug may be closed.
@@ -70,15 +55,6 @@ information to triage and debug may be closed.
 Please note that while the issue tracker is open to feature requests, development is primarily focused on
 improving hardware compatibility, performance, and finishing any unimplemented features necessary for parity with
 the vanilla renderer.
-
-### Community
-[![Discord chat](https://img.shields.io/badge/chat%20on-discord-7289DA?logo=discord&logoColor=white)](https://caffeinemc.net/discord)
-
-We have an [official Discord community](https://caffeinemc.net/discord) for all of our projects. By joining, you can:
-- Get installation help and technical support with all of our mods
-- Be notified of the latest developments as they happen
-- Get involved and collaborate with the rest of our team
-- ... and just hang out with the rest of our community.
 
 ---
 
@@ -117,6 +93,8 @@ Build artifacts ending in `dev` are outputs containing the sources and compiled 
 before they are remapped into stable intermediary names. If you are working in a developer environment and would
 like to add the mod to your game, you should prefer to use the `modRuntime` or `modImplementation` configurations provided by
 Loom instead of these outputs.
+
+Warning, I will likely be force pushing updates.
 
 ---
 
