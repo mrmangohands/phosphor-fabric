@@ -5,15 +5,19 @@ plugins {
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
-archivesBaseName = "${project.archives_base_name}-mc${project.minecraft_version}"
+archivesBaseName = "phosphor-1.16.1-backport-fabric"
 group = project.maven_group
 
-def build_id = System.getenv("GITHUB_RUN_NUMBER");
+version = "${project.mod_version}-SNAPSHOT"
 
-if (build_id == null) {
-    version = "${project.mod_version}-SNAPSHOT"
-} else {
-    version = "${project.mod_version}+build.${build_id}"
+def action = System.getenv("GITHUB_ACTIONS")
+
+def getDate() {
+    return new Date().format('yyyy-MM-dd')
+}
+
+if (action != null) {
+    version += "+" + getDate()
 }
 
 minecraft {
